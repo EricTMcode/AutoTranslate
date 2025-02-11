@@ -59,12 +59,22 @@ struct ContentView: View {
                 TextEditor(text: $input)
                     .font(.largeTitle)
 
-                Button("Create Translations", action: createAllTranslations)
+                Group {
+                    switch translationState {
+                    case .waiting:
+                        Button("Create Translations", action: createAllTranslations)
+                    case .creating:
+                        ProgressView()
+                    case .done:
+                        Text("Done")
+                    }
+                }
+                .frame(height: 60)
             }
         }
         .translationTask(configuration, action: translate)
         .onChange(of: input) {
-            configuration.invalidate()
+            translationState = .waiting
         }
         .onChange(of: languages, updateLanguages)
     }
