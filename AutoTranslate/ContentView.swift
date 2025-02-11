@@ -55,8 +55,12 @@ struct ContentView: View {
                 }
             }
         } detail: {
-            TextEditor(text: $input)
-                .font(.largeTitle)
+            VStack(spacing: 0) {
+                TextEditor(text: $input)
+                    .font(.largeTitle)
+
+                Button("Create Translations", action: createAllTranslations)
+            }
         }
         .translationTask(configuration, action: translate)
         .onChange(of: input) {
@@ -66,11 +70,36 @@ struct ContentView: View {
 
     func translate(using session: TranslationSession) async {
         do {
-            let result = try await session.translate(input)
-            print(result.targetText)
+            if translationState == .creating {
+                let result = try await session.translate(input)
+                print(result.targetText)
+
+                languageIndex += 1
+                doNextTranslation()
+            }
         } catch {
             print(error.localizedDescription)
+            translationState = .waiting
         }
+    }
+
+    func createAllTranslations() {
+        translatingLanguages = languages.filter(\.isSelected)
+        languageIndex = 0
+        translationState = .creating
+        doNextTranslation()
+    }
+
+    func doNextTranslation() {
+        guard languageIndex < translatingLanguages.count else {
+            translationState = .done
+            return
+        }
+
+        let language = translatingLanguages[languageIndex]
+        configuration.source = Locale.Language(identifier: "en")
+        configuration.target = Locale.Language(identifier: language.id)
+        configuration.invalidate()
     }
 }
 
