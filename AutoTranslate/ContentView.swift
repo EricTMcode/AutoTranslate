@@ -6,16 +6,14 @@
 //
 
 import SwiftUI
+import Translation
 
 struct ContentView: View {
+    @State private var input = "Hello, world!"
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        TextEditor(text: $input)
+            .font(.largeTitle)
     }
 }
 
