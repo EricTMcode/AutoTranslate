@@ -66,11 +66,14 @@ struct ContentView: View {
         .onChange(of: input) {
             configuration.invalidate()
         }
+        .onChange(of: languages, updateLanguages)
     }
 
     func translate(using session: TranslationSession) async {
         do {
-            if translationState == .creating {
+            if translationState == .waiting {
+                try await session.prepareTranslation()
+            } else {
                 let result = try await session.translate(input)
                 print(result.targetText)
 
@@ -100,6 +103,22 @@ struct ContentView: View {
         configuration.source = Locale.Language(identifier: "en")
         configuration.target = Locale.Language(identifier: language.id)
         configuration.invalidate()
+    }
+
+    func updateLanguages(oldValue: [Language], newValue: [Language]) {
+        let oldSet = Set(oldValue.filter(\.isSelected))
+        let newSet = Set(newValue.filter(\.isSelected))
+
+        // Substract the old languages from the new languages.
+        let difference = newSet.subtracting(oldSet)
+
+        // Check to see if we had and addition.
+        if let newLanguage = difference.first {
+            configuration.source = Locale.Language(identifier: newLanguage.id)
+            configuration.invalidate()
+        }
+
+        translationState = .waiting
     }
 }
 
