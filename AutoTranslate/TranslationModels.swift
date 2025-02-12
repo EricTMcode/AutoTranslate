@@ -25,3 +25,32 @@ struct TranslationLanguage: Codable {
 struct TranslationString: Codable {
     var localizations = [String: TranslationLanguage]()
 }
+
+struct TranslationDocument: Codable, FileDocument {
+    static var readableContentTypes = [UTType.xcStrings]
+
+    var sourceLanguage: String
+    var strings: [String: TranslationString]
+    var version = "1.0"
+
+    init(sourceLanguage: String, strings: [String: TranslationString] = [:]) {
+        self.sourceLanguage = sourceLanguage
+        self.strings = strings
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        if let data = configuration.file.regularFileContents {
+            self = try JSONDecoder().decode(TranslationDocument.self, from: data)
+        } else {
+            sourceLanguage = "en"
+            strings = [:]
+        }
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(self)
+        return FileWrapper(regularFileWithContents: data)
+    }
+}

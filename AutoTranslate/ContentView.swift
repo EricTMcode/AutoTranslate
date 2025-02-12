@@ -45,6 +45,9 @@ struct ContentView: View {
     @State private var translatingLanguages = [Language]()
     @State private var languageIndex = Int.max
 
+    @State private var showingExporter = false
+    @State private var document = TranslationDocument(sourceLanguage: "en")
+
     var body: some View {
         NavigationSplitView {
             ScrollView {
@@ -66,7 +69,9 @@ struct ContentView: View {
                     case .creating:
                         ProgressView()
                     case .done:
-                        Text("Done")
+                        Button("Export") {
+                            showingExporter = true
+                        }
                     }
                 }
                 .frame(height: 60)
@@ -77,6 +82,7 @@ struct ContentView: View {
             translationState = .waiting
         }
         .onChange(of: languages, updateLanguages)
+        .fileExporter(isPresented: $showingExporter, document: document, contentType: .xcStrings, defaultFilename: "Localizable", onCompletion: handleSaveResult)
     }
 
     func translate(using session: TranslationSession) async {
@@ -84,8 +90,18 @@ struct ContentView: View {
             if translationState == .waiting {
                 try await session.prepareTranslation()
             } else {
-                let result = try await session.translate(input)
-                print(result.targetText)
+                let inputStrings = input.components(separatedBy: .newlines)
+                let requests = inputStrings.map { TranslationSession.Request(sourceText: $0) }
+
+                for response in try await session.translations(from: requests) {
+                    let translationUnit = TranslationUnit(value: response.targetText)
+
+                    var currentTranslationString = document.strings[response.sourceText] ?? TranslationString()
+
+                    currentTranslationString.localizations[response.targetLanguage.minimalIdentifier] = TranslationLanguage(stringUnit: translationUnit)
+
+                    document.strings[response.sourceText] = currentTranslationString
+                }
 
                 languageIndex += 1
                 doNextTranslation()
@@ -100,6 +116,7 @@ struct ContentView: View {
         translatingLanguages = languages.filter(\.isSelected)
         languageIndex = 0
         translationState = .creating
+        document.strings.removeAll()
         doNextTranslation()
     }
 
@@ -129,6 +146,15 @@ struct ContentView: View {
         }
 
         translationState = .waiting
+    }
+
+    func handleSaveResult(_ result: Result<URL, Error>) {
+        switch result {
+        case .success(let url):
+            print("Saved to \(url)")
+        case .failure(let error):
+            print(error.localizedDescription)
+        }
     }
 }
 
